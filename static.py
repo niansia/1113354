@@ -1,35 +1,36 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
-static.py
-抓取 Yahoo 奇摩股市（靜態 HTML）即時報價並輸出 static.json / static.csv
+static.py  v2
+抓取 Yahoo 奇摩股市即時報價
+自動擷取台灣上市股票前 N 檔，輸出 static.json / static.csv
 """
-import json, re, time, csv
+import csv, json, re, time
 from pathlib import Path
 from typing import List, Dict
 import requests
 from bs4 import BeautifulSoup
 
-HEADERS = {"User-Agent": "Mozilla/5.0 (GitHub Classroom HW)"}
-STOCKS  = ["2330", "2317", "2454"]          # ← 想抓別的股票直接改這裡
-URL_TPL = "https://tw.stock.yahoo.com/quote/{}.TW"
+HEADERS   = {"User-Agent": "Mozilla/5.0 (GitHub Actions HW)"}
+MAX_STOCKS = 600 
 
-def parse_stock(code: str) -> Dict:
-    """回傳單一股票的即時資訊 dict"""
-    url   = URL_TPL.format(code)
-    html  = requests.get(url, headers=HEADERS, timeout=10).text
-    soup  = BeautifulSoup(html, "lxml")
+ISIN_URL = "https://isin.twse.com.tw/isin/C_public.jsp?strMode=2"
 
-    # Yahoo 會把即時價格塞進一段 <script> JSON；用正規式直接抓
-    m = re.search(r'"regularMarketPrice":\{"raw":([\d.]+),"fmt":"([\d.,]+)"\}', html)
+def get_stock_list(n: int) -> List[str]:
+    html = requests.get(ISIN_URL, headers=HEADERS, timeout=15).text
+    codes = re.findall(r"<td>(\d{4})\u3000", html)
+    return codes[:n]
+
+YAHOO = "https://tw.stock.yahoo.com/quote/{}.TW"
+
+def fetch_quote(code: str) -> Dict:
+    url  = YAHOO.format(code)
+    html = requests.get(url, headers=HEADERS, timeout=10).text
+    m = re.search(r'"regularMarketPrice":\{"raw":([\d.]+)', html)
     price = float(m.group(1)) if m else None
-
+    soup  = BeautifulSoup(html, "lxml")
     change_tag = soup.select_one('span[data-field="regularMarketChange"]')
     change     = change_tag.text.strip() if change_tag else ""
-
-    volume_tag = soup.find("span", string=re.compile("成交量"))
-    volume     = volume_tag.find_next("span").text if volume_tag else ""
-
+    vol_tag    = soup.find("span", string=re.compile("成交量"))
+    volume     = vol_tag.find_next("span").text if vol_tag else ""
     return {
         "股票代號": code,
         "即時價格": price,
@@ -39,12 +40,11 @@ def parse_stock(code: str) -> Dict:
     }
 
 def main():
-    rows: List[Dict] = [parse_stock(s) for s in STOCKS]
+    codes = get_stock_list(MAX_STOCKS)
+    rows  = [fetch_quote(c) for c in codes]
 
-    # 輸出 JSON
-    Path("static.json").write_text(json.dumps(rows, ensure_ascii=False, indent=2))
-
-    # 輸出 CSV
+    Path("static.json").write_text(
+        json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
     with open("static.csv", "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=rows[0].keys())
         writer.writeheader(); writer.writerows(rows)
