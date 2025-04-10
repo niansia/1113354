@@ -108,11 +108,9 @@ def main():
     if len(rows) < TARGET_ROWS:
         raise RuntimeError("抓不到任何股票資料，請檢查清單或網路連線")
 
-    # 寫 JSON
     Path("static.json").write_text(
         json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    # 寫 CSV
     with open("static.csv", "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=rows[0].keys())
         writer.writeheader()
