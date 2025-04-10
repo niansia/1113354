@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 static.py  v2
 抓取 Yahoo 奇摩股市即時報價
@@ -10,7 +12,7 @@ import requests
 from bs4 import BeautifulSoup
 
 HEADERS   = {"User-Agent": "Mozilla/5.0 (GitHub Actions HW)"}
-MAX_STOCKS = 600 
+MAX_STOCKS = 600
 
 ISIN_URL = "https://isin.twse.com.tw/isin/C_public.jsp?strMode=2"
 
